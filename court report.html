@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Court File Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", Arial, sans-serif;
+            color: #17233b;
+            background: #edf2f8;
+            font-synthesis: none;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            position: relative;
+            isolation: isolate;
+            max-width: 1040px;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 48px 28px 64px;
+            background:
+                radial-gradient(ellipse at 12% 8%, rgba(65, 123, 190, 0.16), transparent 32rem),
+                radial-gradient(ellipse at 92% 42%, rgba(26, 111, 101, 0.12), transparent 30rem),
+                linear-gradient(145deg, #f5f8fc 0%, #e9eff7 52%, #f2f5f9 100%);
+        }
+
+        body::before,
+        body::after {
+            position: fixed;
+            z-index: -1;
+            width: 260px;
+            height: 260px;
+            border: 1px solid rgba(39, 75, 119, 0.09);
+            border-radius: 50%;
+            content: "";
+            pointer-events: none;
+        }
+
+        body::before {
+            top: 8%;
+            right: -125px;
+            box-shadow: 0 0 0 28px rgba(39, 75, 119, 0.025), 0 0 0 56px rgba(39, 75, 119, 0.02);
+        }
+
+        body::after {
+            bottom: -170px;
+            left: -120px;
+            width: 320px;
+            height: 320px;
+            border-color: rgba(26, 111, 101, 0.1);
+            box-shadow: 0 0 0 30px rgba(26, 111, 101, 0.025);
+        }
+
+        h1 {
+            margin: 0 0 28px;
+            padding: 26px 30px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 18px;
+            background: linear-gradient(120deg, #142b4d, #214c70 72%, #236b69);
+            box-shadow: 0 16px 34px rgba(24, 48, 78, 0.2);
+            color: #fff;
+            font-size: clamp(1.65rem, 4vw, 2.2rem);
+            letter-spacing: 0.015em;
+        }
+
+        section,
+        body > h2,
+        body > h3,
+        body > table,
+        body > button {
+            position: relative;
+        }
+
+        body > section {
+            margin: 0 0 22px;
+            padding: 26px 28px;
+            border: 1px solid rgba(205, 216, 230, 0.9);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 10px 28px rgba(35, 57, 83, 0.075);
+            backdrop-filter: blur(8px);
+        }
+
+        h2 {
+            margin: 0 0 20px;
+            color: #1d3658;
+            font-size: 1.25rem;
+        }
+
+        label {
+            display: inline-block;
+            margin-bottom: 8px;
+            color: #34455f;
+            font-size: 0.94rem;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="file"],
+        textarea {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            background: #fbfdff;
+            color: #17233b;
+            font: inherit;
+            transition: border-color 150ms ease, box-shadow 150ms ease;
+        }
+
+        input[type="file"] {
+            padding: 8px;
+        }
+
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: #397e9a;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(57, 126, 154, 0.16);
+        }
+
+        button {
+            min-height: 40px;
+            margin: 4px 8px 4px 0;
+            padding: 9px 15px;
+            border: 1px solid #244d70;
+            border-radius: 9px;
+            background: #244d70;
+            color: #fff;
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.92rem;
+            font-weight: 600;
+            transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            background: #183a5d;
+            box-shadow: 0 5px 12px rgba(24, 58, 93, 0.18);
+        }
+
+        button:focus-visible {
+            outline: 3px solid rgba(57, 126, 154, 0.35);
+            outline-offset: 2px;
+        }
+
+        button[hidden] {
+            display: none;
+        }
+
+        #cancelEditButton {
+            border-color: #8a5360;
+            background: #fff;
+            color: #743b49;
+        }
+
+        #cancelEditButton:hover {
+            background: #fff3f4;
+        }
+
+        #photoStatus {
+            min-height: 24px;
+            color: #54647a;
+        }
+
+        .target-summary {
+            margin: 14px 0;
+            padding: 16px;
+            border: 1px solid #cfe2df;
+            border-radius: 10px;
+            background: #eef8f6;
+            color: #24465c;
+            transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+        }
+
+        .target-summary.is-reached {
+            border-color: #16835f;
+            background: #d9f7e9;
+            box-shadow: 0 0 0 3px rgba(22, 131, 95, 0.18), 0 8px 22px rgba(22, 131, 95, 0.14);
+        }
+
+        .target-summary.is-exceeded {
+            border-color: #c58719;
+            background: #fff3d6;
+            box-shadow: 0 0 0 3px rgba(197, 135, 25, 0.15);
+        }
+
+        .target-summary p {
+            margin: 8px 0 0;
+        }
+
+        .target-metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .target-metric {
+            display: grid;
+            flex: 1 1 150px;
+            gap: 5px;
+            padding: 12px 14px;
+            border: 1px solid;
+            border-radius: 9px;
+        }
+
+        .target-metric-target {
+            border-color: #9bb9eb;
+            background: #e9f1ff;
+            color: #174a9c;
+        }
+
+        .target-metric-remaining {
+            border-color: #9bd7bf;
+            background: #e5f8ef;
+            color: #126444;
+        }
+
+        .target-metric-remaining.is-exceeded {
+            border-color: #e4a7a7;
+            background: #fff0f0;
+            color: #a32828;
+        }
+
+        .target-metric strong {
+            font-size: 1.2rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #targetStatus {
+            color: #34455f;
+            font-weight: 600;
+        }
+
+        #photoPreview {
+            display: block;
+            max-width: 100%;
+            max-height: 360px;
+            margin: 12px 0;
+            border: 1px solid #d4deea;
+            border-radius: 10px;
+            object-fit: contain;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 0 0 18px;
+            border: 1px solid #d4deea;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: 0 8px 22px rgba(35, 57, 83, 0.06);
+        }
+
+        table {
+            width: 100%;
+            min-width: 580px;
+            border: 0;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 13px 15px;
+            border: 0;
+            border-bottom: 1px solid #e3e9f0;
+        }
+
+        th {
+            background: #eaf0f6;
+            color: #243d5c;
+            font-size: 0.9rem;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        tbody tr:hover {
+            background: #f6f9fc;
+        }
+
+        td button {
+            min-height: 34px;
+            margin: 2px 5px 2px 0;
+            padding: 6px 11px;
+            font-size: 0.85rem;
+        }
+
+        td button:last-child {
+            border-color: #a34e58;
+            background: #a34e58;
+        }
+
+        body > h3 {
+            display: inline-block;
+            margin: 4px 14px 14px 0;
+            padding: 12px 16px;
+            border: 1px solid #d7e3e9;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.86);
+            color: #24465c;
+            font-size: 1.05rem;
+        }
+
+        #grandTotal {
+            color: #12665d;
+            font-variant-numeric: tabular-nums;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 24px 14px 40px;
+            }
+
+            h1 {
+                margin-bottom: 18px;
+                padding: 21px 20px;
+            }
+
+            body > section {
+                padding: 20px 18px;
+            }
+
+            button {
+                margin-top: 7px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Court File Report</h1>
+
+    <section class="card" aria-labelledby="photoHeading">
+        <h2 id="photoHeading">Upload Court File Photo</h2>
+        <label for="targetAmount">Target Number:</label>
+        <input type="number" id="targetAmount" min="0" step="any" value="5000" oninput="updatePhotoTotal()">
+        <div class="target-summary" aria-live="polite">
+            <strong>Current Total: <span id="targetCurrentTotal">0</span></strong>
+            <div class="target-metrics">
+                <div class="target-metric target-metric-target">
+                    <span>Target</span>
+                    <strong id="targetSummaryValue">5,000</strong>
+                </div>
+                <div class="target-metric target-metric-remaining" id="remainingMetric">
+                    <span id="remainingLabel">Remaining</span>
+                    <strong id="remainingAmount">5,000</strong>
+                </div>
+            </div>
+            <p id="targetStatus"></p>
+        </div>
+        <label for="photoUpload">Select a court file photo:</label>
+        <input type="file" id="photoUpload" accept="image/*" onchange="handlePhotoSelected('photoUpload')">
+        <input type="file" id="cameraUpload" accept="image/*" capture="environment" hidden onchange="handlePhotoSelected('cameraUpload')">
+        <button type="button" onclick="openCamera()">Take Photo &amp; Upload</button>
+        <button type="button" onclick="readPhoto(getSelectedPhotoInput())">Read Selected Photo Again</button>
+        <p id="photoStatus" aria-live="polite">No photo selected.</p>
+        <img id="photoPreview" alt="Selected court file photo preview" hidden>
+
+        <label for="ocrText">Review the extracted text:</label>
+        <textarea
+            id="ocrText"
+            rows="7"
+            style="width:100%; padding:12px; box-sizing:border-box;"
+            placeholder="OCR text will appear here. Total will be added at the bottom."
+            oninput="updatePhotoTotal()"
+        ></textarea>
+        <br><br>
+        <button type="button" onclick="importPhotoRows()">Fill Details from Photo</button>
+        <button type="button" onclick="copyPhotoResult()">Copy Photo Result</button>
+    </section>
+
+    <section aria-labelledby="entryHeading">
+        <h2 id="entryHeading">Court File Details</h2>
+
+        <label for="os">OS Number:</label>
+        <input type="text" id="os" autocomplete="off">
+
+        <br><br>
+
+        <label for="year">Year:</label>
+        <input type="number" id="year" min="1" step="1">
+
+        <br><br>
+
+        <label for="total">Total:</label>
+        <input type="number" id="total" min="0" step="any">
+
+        <br><br>
+
+        <button type="button" id="saveEntryButton" onclick="addEntry()">Add Entry</button>
+        <button type="button" id="cancelEditButton" onclick="cancelEdit()" hidden>Cancel Edit</button>
+    </section>
+
+    <h2>Added Court Files</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>S.No</th>
+                    <th>OS Number</th>
+                    <th>Year</th>
+                    <th>Total</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="fileTable"></tbody>
+        </table>
+    </div>
+
+    <h3>Grand Total: <span id="grandTotal">0</span></h3>
+    <button type="button" onclick="downloadReport()">Download TXT Report</button>
+    <button type="button" onclick="copyReportText()">Copy Text Report</button>
+
+    <script>
+        let files = [];
+        let editingIndex = null;
+
+        function getEntryValues() {
+            const os = document.getElementById("os").value.trim();
+            const yearValue = document.getElementById("year").value.trim();
+            const totalValue = document.getElementById("total").value.trim();
+            const year = Number(yearValue);
+            const total = Number(totalValue);
+
+            if (os === "" || yearValue === "" || totalValue === "") {
+                alert("Ella details-um fill pannunga!");
+                return null;
+            }
+
+            if (!Number.isInteger(year) || year <= 0) {
+                alert("Correct Year enter pannunga!");
+                return null;
+            }
+
+            if (!Number.isFinite(total) || total < 0) {
+                alert("Correct Total enter pannunga!");
+                return null;
+            }
+
+            return { os: os, year: year, total: total };
+        }
+
+        function addEntry() {
+            const entry = getEntryValues();
+            if (!entry) {
+                return;
+            }
+
+            if (hasDuplicateEntry(entry, editingIndex)) {
+                alert("Indha OS Number, Year, Total combination already report-la irukku!");
+                return;
+            }
+
+            if (editingIndex === null) {
+                files.push(entry);
+            } else {
+                files[editingIndex] = entry;
+            }
+
+            resetEntryForm();
+            showFiles();
+        }
+
+        function hasDuplicateEntry(entry, ignoreIndex) {
+            return files.some(function(file, index) {
+                return index !== ignoreIndex && areSameEntry(file, entry);
+            });
+        }
+
+        function areSameEntry(first, second) {
+            return normalizeOsNumber(first.os) === normalizeOsNumber(second.os) &&
+                Number(first.year) === Number(second.year) &&
+                Number(first.total) === Number(second.total);
+        }
+
+        function normalizeOsNumber(os) {
+            return os
+                .replace(/^\s*OS\s*(?:Number|No\.?)?\s*[:#-]?\s*/i, "")
+                .replace(/\s+/g, "")
+                .toLocaleUpperCase();
+        }
+
+        function resetEntryForm() {
+            document.getElementById("os").value = "";
+            document.getElementById("year").value = "";
+            document.getElementById("total").value = "";
+            editingIndex = null;
+            document.getElementById("saveEntryButton").textContent = "Add Entry";
+            document.getElementById("cancelEditButton").hidden = true;
+        }
+
+        function cancelEdit() {
+            resetEntryForm();
+        }
+
+        function showFiles() {
+            const uniqueFiles = [];
+            let updatedEditingIndex = null;
+
+            files.forEach(function(file, index) {
+                const existingIndex = uniqueFiles.findIndex(function(existingFile) {
+                    return areSameEntry(existingFile, file);
+                });
+
+                if (existingIndex === -1) {
+                    if (index === editingIndex) {
+                        updatedEditingIndex = uniqueFiles.length;
+                    }
+                    uniqueFiles.push(file);
+                } else if (index === editingIndex) {
+                    updatedEditingIndex = existingIndex;
+                }
+            });
+
+            files = uniqueFiles;
+            editingIndex = updatedEditingIndex;
+
+            const table = document.getElementById("fileTable");
+            table.innerHTML = "";
+            let grandTotal = 0;
+
+            files.forEach(function(file, index) {
+                const row = table.insertRow();
+                row.insertCell(0).textContent = index + 1;
+                row.insertCell(1).textContent = file.os;
+                row.insertCell(2).textContent = file.year;
+                row.insertCell(3).textContent = file.total;
+
+                const actionCell = row.insertCell(4);
+                const editButton = document.createElement("button");
+                editButton.type = "button";
+                editButton.textContent = "Edit";
+                editButton.onclick = function() {
+                    document.getElementById("os").value = file.os;
+                    document.getElementById("year").value = file.year;
+                    document.getElementById("total").value = file.total;
+                    editingIndex = index;
+                    document.getElementById("saveEntryButton").textContent = "Update Entry";
+                    document.getElementById("cancelEditButton").hidden = false;
+                };
+                actionCell.appendChild(editButton);
+
+                const deleteButton = document.createElement("button");
+                deleteButton.type = "button";
+                deleteButton.textContent = "Delete";
+                deleteButton.onclick = function() {
+                    files.splice(index, 1);
+                    if (editingIndex === index) {
+                        resetEntryForm();
+                    } else if (editingIndex !== null && editingIndex > index) {
+                        editingIndex -= 1;
+                    }
+                    showFiles();
+                };
+                actionCell.appendChild(deleteButton);
+
+                grandTotal += file.total;
+            });
+
+            document.getElementById("grandTotal").textContent = grandTotal;
+        }
+
+        let photoPreviewUrl = null;
+        let selectedPhotoInput = "photoUpload";
+
+        function openCamera() {
+            const cameraInput = document.getElementById("cameraUpload");
+            cameraInput.value = "";
+            cameraInput.click();
+        }
+
+        function getSelectedPhotoInput() {
+            return selectedPhotoInput;
+        }
+
+        function handlePhotoSelected(inputId) {
+            const photo = document.getElementById(inputId).files[0];
+            if (!photo) {
+                return;
+            }
+
+            selectedPhotoInput = inputId;
+            const preview = document.getElementById("photoPreview");
+            if (photoPreviewUrl !== null) {
+                URL.revokeObjectURL(photoPreviewUrl);
+            }
+            photoPreviewUrl = URL.createObjectURL(photo);
+            preview.src = photoPreviewUrl;
+            preview.hidden = false;
+            readPhoto(inputId);
+        }
+
+        async function readPhoto(inputId) {
+            const photo = document.getElementById(inputId).files[0];
+            const status = document.getElementById("photoStatus");
+            if (!photo) {
+                status.textContent = "Please select a photo first.";
+                return;
+            }
+
+            if (!photo.type.startsWith("image/")) {
+                status.textContent = "Please select a valid image file.";
+                return;
+            }
+
+            if (typeof Tesseract === "undefined") {
+                status.textContent = "OCR library could not be loaded. Check your internet connection and try again.";
+                return;
+            }
+
+            status.textContent = "Reading photo... Please wait.";
+            try {
+                const result = await Tesseract.recognize(photo, "eng", {
+                    logger: function(progress) {
+                        if (progress.status === "recognizing text") {
+                            status.textContent = "Reading photo... " + Math.round(progress.progress * 100) + "%";
+                        }
+                    }
+                });
+                document.getElementById("ocrText").value = filterRelevantPhotoText(result.data.text);
+                updatePhotoTotal();
+                const foundAllDetails = fillDetailsFromOCR();
+                status.textContent = foundAllDetails
+                    ? "Photo reading complete. Only OS Number, Year, and amount lines are shown. Please verify the details."
+                    : "Photo reading complete. Only matching details are shown; enter any missing values manually.";
+            } catch (error) {
+                console.error("Photo OCR failed:", error);
+                status.textContent = "Could not read this photo. Try a clearer image.";
+            }
+        }
+
+        function filterRelevantPhotoText(text) {
+            text = normalizeOSLabel(text);
+            const lines = text.split(/\r?\n/);
+            const osMatch = text.match(/\bOS\s*(?:(?:Number|No\.?)\s*)?[:#-]?\s*((?:[A-Za-z]+\s*[-/]?\s*)?\d+(?:[./-]\d+)*)/i);
+            const yearMatch = text.match(/\bYear\s*[:#-]?\s*(\d{4})\b/i);
+            const relevantLines = [];
+            const seenEntries = new Set();
+            const osRows = [];
+
+            lines.forEach(function(line) {
+                const entry = extractPhotoEntry(line, yearMatch ? yearMatch[1] : "");
+                if (!entry) {
+                    return;
+                }
+
+                const key = getEntryKey(entry);
+                if (!seenEntries.has(key)) {
+                    seenEntries.add(key);
+                    osRows.push("OS " + entry.os + " = " + entry.total);
+                }
+            });
+
+            if (osRows.length > 0) {
+                return osRows.join("\n");
+            }
+
+            if (osMatch) {
+                relevantLines.push("OS Number: " + osMatch[1].trim().toLocaleUpperCase());
+            }
+            if (yearMatch) {
+                relevantLines.push("Year: " + yearMatch[1]);
+            }
+
+            lines.forEach(function(line) {
+                if (/\bOS\s*(?:(?:Number|No\.?)\s*)?[:#-]?\s*(?:[A-Za-z]+\s*[-/]?\s*)?\d+(?:[./-]\d+)*\s*=/i.test(line) ||
+                    /\bOS\s*(?:Number|No\.?)\b|\bYear\b/i.test(line)) {
+                    return;
+                }
+
+                const amountAfterEquals = /=\s*(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)(?![\d/,])/gi;
+                let match;
+                while ((match = amountAfterEquals.exec(line)) !== null) {
+                    const label = line.slice(0, match.index).trim() || "Amount";
+                    relevantLines.push(label + " = " + match[1]);
+                }
+            });
+
+            return relevantLines.join("\n");
+        }
+
+        function extractPhotoEntry(line, fallbackYear) {
+            const formattedMatch = line.match(
+                /^\s*OS Number:\s*(.+?)\s*,\s*Year:\s*(\d{4})\s*,\s*Total\s*=\s*(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)\s*$/i
+            );
+            const rawMatch = line.match(
+                /\bOS\s*(?:(?:Number|No\.?)\s*)?[:#-]?\s*((?:[A-Za-z]+\s*[-/]?\s*)?\d+(?:[./-]\d+)*)\s*=\s*(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)(?![\d/,])/i
+            );
+            const match = formattedMatch || rawMatch;
+            if (!match) {
+                return null;
+            }
+
+            const os = formattedMatch ? match[1].trim() : match[1].trim().toLocaleUpperCase();
+            const yearMatch = os.match(/(\d{4})$/);
+            const year = formattedMatch
+                ? match[2]
+                : (yearMatch ? yearMatch[1] : fallbackYear);
+            if (!year) {
+                return null;
+            }
+
+            const total = Number((formattedMatch ? match[3] : match[2]).replace(/,/g, ""));
+            if (!Number.isFinite(total)) {
+                return null;
+            }
+            return { os: os, year: Number(year), total: total };
+        }
+
+        function getEntryKey(entry) {
+            return normalizeOsNumber(entry.os) + "|" +
+                Number(entry.year) + "|" +
+                Number(entry.total);
+        }
+
+        function normalizeOSLabel(text) {
+            return text.replace(/\b0S\b/gi, "OS");
+        }
+
+        function updatePhotoTotal() {
+            const textArea = document.getElementById("ocrText");
+            const currentText = textArea.value;
+            const cursorPosition = textArea.selectionStart;
+            const text = currentText.replace(/\r?\nTotal: [^\r\n]*$/i, "");
+            const amountAfterEquals = /=\s*(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)(?![\d/,])/gi;
+            const seenEntries = new Set();
+            let total = 0;
+            let count = 0;
+
+            text.split(/\r?\n/).forEach(function(line) {
+                const entry = extractPhotoEntry(line, "");
+                if (entry) {
+                    const key = getEntryKey(entry);
+                    if (!seenEntries.has(key)) {
+                        seenEntries.add(key);
+                        total += entry.total;
+                        count += 1;
+                    }
+                    return;
+                }
+
+                if (/\bOS\s*(?:Number|No\.?)\b|\bYear\b/i.test(line)) {
+                    return;
+                }
+
+                amountAfterEquals.lastIndex = 0;
+                let match;
+                while ((match = amountAfterEquals.exec(line)) !== null) {
+                    const amount = Number(match[1].replace(/,/g, ""));
+                    if (Number.isFinite(amount)) {
+                        total += amount;
+                        count += 1;
+                    }
+                }
+            });
+
+            updateTargetSummary(total);
+
+            if (text.trim() === "") {
+                textArea.value = text;
+                return;
+            }
+
+            const formattedTotal = total.toLocaleString(undefined, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
+            const summary = count
+                ? "Total: " + formattedTotal
+                : "Total: 0 (No amounts found after '=')";
+            textArea.value = text + "\n" + summary;
+            const restoredPosition = Math.min(cursorPosition, text.length);
+            textArea.setSelectionRange(restoredPosition, restoredPosition);
+        }
+
+        function updateTargetSummary(currentTotal) {
+            const targetInput = document.getElementById("targetAmount");
+            const currentTotalElement = document.getElementById("targetCurrentTotal");
+            const targetStatus = document.getElementById("targetStatus");
+            const targetSummary = targetStatus.closest(".target-summary");
+            const targetValue = document.getElementById("targetSummaryValue");
+            const remainingMetric = document.getElementById("remainingMetric");
+            const remainingLabel = document.getElementById("remainingLabel");
+            const remainingAmount = document.getElementById("remainingAmount");
+            const target = Number(targetInput.value);
+            const formatAmount = function(amount) {
+                return amount.toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                });
+            };
+
+            currentTotalElement.textContent = formatAmount(currentTotal);
+            remainingMetric.classList.remove("is-exceeded");
+            targetSummary.classList.remove("is-reached", "is-exceeded");
+            if (targetInput.value.trim() === "" || !Number.isFinite(target) || target < 0) {
+                targetValue.textContent = "—";
+                remainingLabel.textContent = "Remaining";
+                remainingAmount.textContent = "—";
+                targetStatus.textContent = "Enter a valid target amount.";
+                return;
+            }
+
+            targetValue.textContent = formatAmount(target);
+            const remaining = target - currentTotal;
+            if (remaining > 0) {
+                remainingLabel.textContent = "Remaining";
+                remainingAmount.textContent = formatAmount(remaining);
+                targetStatus.textContent = "";
+            } else if (remaining === 0) {
+                remainingLabel.textContent = "Remaining";
+                remainingAmount.textContent = "0";
+                targetStatus.textContent = "Target reached";
+                targetSummary.classList.add("is-reached");
+            } else {
+                remainingLabel.textContent = "Target exceeded by";
+                remainingAmount.textContent = formatAmount(Math.abs(remaining));
+                targetStatus.textContent = "Target exceeded";
+                targetSummary.classList.add("is-exceeded");
+                remainingMetric.classList.add("is-exceeded");
+            }
+        }
+
+        function fillDetailsFromOCR() {
+            const text = normalizeOSLabel(document.getElementById("ocrText").value);
+            const osMatch = text.match(/\bOS\s*(?:(?:Number|No\.?)\s*)?[:#-]?\s*((?:[A-Za-z]+\s*[-/]?\s*)?\d+(?:[./-]\d+)*)/i);
+            const yearMatch = text.match(/\bYear\s*[:#-]?\s*(\d{4})\b/i) ||
+                (osMatch && osMatch[1].match(/(\d{4})$/));
+            const TotalMatch = text.match(/\bTotal:\s*([\d,]+(?:\.\d+)?)/i);
+            const total = TotalMatch
+                ? Number(TotalMatch[1].replace(/,/g, ""))
+                : extractTotalFromOCR(text);
+
+            if (osMatch) {
+                document.getElementById("os").value = osMatch[1].toLocaleUpperCase();
+            }
+            if (yearMatch) {
+                document.getElementById("year").value = yearMatch[1];
+            }
+            if (total !== null) {
+                document.getElementById("total").value = total;
+            }
+
+            return Boolean(osMatch && yearMatch && total !== null);
+        }
+
+        function extractTotalFromOCR(text) {
+            const lines = text.split(/\r?\n/);
+            const totalLabel = /\b(?:grand\s*)?t[o0]t[a4][l1i](?:\s+(?:amount|amt|fees?))?\b|\bamount\s+(?:payable|due)\b/i;
+            const amountAtStart = /^\s*[:=–—-]?\s*(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i;
+
+            for (let index = 0; index < lines.length; index += 1) {
+                const labelMatch = totalLabel.exec(lines[index]);
+                if (!labelMatch) {
+                    continue;
+                }
+
+                const amountText = lines[index].slice(labelMatch.index + labelMatch[0].length);
+                let amountMatch = amountAtStart.exec(amountText);
+                if (!amountMatch && index + 1 < lines.length) {
+                    amountMatch = amountAtStart.exec(lines[index + 1]);
+                }
+                if (amountMatch) {
+                    const amount = Number(amountMatch[1].replace(/,/g, ""));
+                    if (Number.isFinite(amount)) {
+                        return amount;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        function importPhotoRows() {
+            if (!fillDetailsFromOCR()) {
+                alert("OS Number, Year, illa Total photo text-la kandupidikka mudiyala. OCR text-ai check pannunga; missing details-ai manual-a fill pannunga.");
+                return;
+            }
+            alert("Details form-la fill panniyachu. Check pannitu Add Entry click pannunga.");
+        }
+
+        function getReportText() {
+            if (files.length === 0) {
+                alert("TXT report download panna first court file add pannunga.");
+                return null;
+            }
+
+            const lines = [
+                "COURT FILE REPORT",
+                "=================",
+                "",
+                "S.No\tOS Number\tYear\tTotal"
+            ];
+            files.forEach(function(file, index) {
+                lines.push((index + 1) + "\t" + file.os + "\t" + file.year + "\t" + file.total);
+            });
+            lines.push("");
+            lines.push("Grand Total: " + files.reduce(function(sum, file) {
+                return sum + file.total;
+            }, 0));
+
+            return lines.join("\r\n");
+        }
+
+        function downloadReport() {
+            const reportText = getReportText();
+            if (reportText === null) {
+                return;
+            }
+
+            const blob = new Blob(["\uFEFF" + reportText], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "court-file-report.txt";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        async function copyPhotoResult() {
+            const photoResult = document.getElementById("ocrText").value.trim();
+            if (photoResult === "") {
+                alert("Copy panna photo result illa. First photo upload panni Read Photo click pannunga.");
+                return;
+            }
+
+            await copyTextToClipboard(
+                photoResult,
+                "Photo result copied! Ippo paste pannikkalam.",
+                "Photo result copy panna mudiyala. Browser clipboard permission check pannunga."
+            );
+        }
+
+        async function copyReportText() {
+            const reportText = getReportText();
+            if (reportText === null) {
+                return;
+            }
+
+            await copyTextToClipboard(
+                reportText,
+                "Report text copied! Ippo paste pannikkalam.",
+                "Report copy panna mudiyala. Browser clipboard permission check pannunga."
+            );
+        }
+
+        async function copyTextToClipboard(text, successMessage, failureMessage) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    const temporaryTextArea = document.createElement("textarea");
+                    temporaryTextArea.value = text;
+                    temporaryTextArea.setAttribute("readonly", "");
+                    temporaryTextArea.style.position = "fixed";
+                    temporaryTextArea.style.left = "-9999px";
+                    document.body.appendChild(temporaryTextArea);
+                    temporaryTextArea.select();
+                    const copied = document.execCommand("copy");
+                    temporaryTextArea.remove();
+                    if (!copied) {
+                        throw new Error("Browser did not allow clipboard access.");
+                    }
+                }
+                alert(successMessage);
+            } catch (error) {
+                console.error("Could not copy text:", error);
+                alert(failureMessage);
+            }
+        }
+    </script>
+</body>
+</html>
